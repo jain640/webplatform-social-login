@@ -1,0 +1,35 @@
+.techskype-social-login {
+	clear: both;
+	margin: 18px 0;
+	max-width: 360px;
+	position: relative;
+}
+
+.techskype-social-login.is-loading {
+	opacity: .65;
+	pointer-events: none;
+}
+
+.techskype-social-login.is-loading::after {
+	animation: techskype-login-spin .7s linear infinite;
+	border: 2px solid #dbe3ea;
+	border-radius: 50%;
+	border-top-color: #147d7f;
+	content: "";
+	height: 18px;
+	position: absolute;
+	right: -28px;
+	top: 10px;
+	width: 18px;
+}
+
+.techskype-social-login-status {
+	color: #b32d2e;
+	font-size: 13px;
+	margin: 8px 0 0;
+}
+
+@keyframes techskype-login-spin {
+	to { transform: rotate(360deg); }
+}
+
