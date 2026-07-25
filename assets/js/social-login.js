@@ -26,7 +26,7 @@
 
 	function initialize() {
 		var containers = Array.from( document.querySelectorAll( '[data-techskype-google-login]' ) );
-		if ( ! containers.length ) {
+		if ( ! containers.length && ! techSkypeSocialLogin.oneTap ) {
 			return;
 		}
 
@@ -34,6 +34,8 @@
 			google.accounts.id.initialize( {
 				client_id: techSkypeSocialLogin.clientId,
 				nonce: nonceResponse.nonce,
+				context: 'signin',
+				itp_support: true,
 				callback: function ( googleResponse ) {
 					containers.forEach( function ( container ) {
 						container.classList.add( 'is-loading' );
@@ -62,6 +64,10 @@
 				width: Math.min( 360, Math.max( 240, container.clientWidth || 240 ) )
 				} );
 			} );
+
+			if ( techSkypeSocialLogin.oneTap ) {
+				google.accounts.id.prompt();
+			}
 		} ).catch( function () {
 			showError( containers, techSkypeSocialLogin.networkError );
 		} );

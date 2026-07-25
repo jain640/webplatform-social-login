@@ -52,6 +52,7 @@ final class TechSkype_Social_Login {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'maybe_secure_option_storage' ), 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_google_one_tap' ), 20 );
 		add_action( 'login_enqueue_scripts', array( $this, 'prepare_login_assets' ) );
 		add_action( 'login_form', array( $this, 'render_wordpress_login' ) );
 		add_action( 'register_form', array( $this, 'render_wordpress_login' ) );
@@ -102,6 +103,7 @@ final class TechSkype_Social_Login {
 			'button_text'      => 'continue_with',
 			'button_theme'     => 'outline',
 			'button_size'      => 'large',
+			'google_one_tap'   => 1,
 			'wordpress_login'  => 1,
 			'woocommerce'      => 1,
 			'create_users'     => 1,
@@ -163,6 +165,57 @@ final class TechSkype_Social_Login {
 			array(),
 			TECHSKYPE_SOCIAL_LOGIN_VERSION
 		);
+	}
+
+	/**
+	 * Prepare Google Identity Services configuration.
+	 *
+	 * @param string $redirect Redirect after authentication.
+	 * @param bool   $one_tap Whether to show the browser-mediated prompt.
+	 */
+	private function enqueue_google_script( $redirect, $one_tap ) {
+		$settings = $this->settings();
+		if ( empty( $settings['client_id'] ) ) {
+			return;
+		}
+
+		wp_enqueue_script( 'techskype-social-login' );
+		wp_localize_script(
+			'techskype-social-login',
+			'techSkypeSocialLogin',
+			array(
+				'clientId'      => $settings['client_id'],
+				'nonceUrl'      => rest_url( self::REST_NS . '/nonce' ),
+				'loginUrl'      => rest_url( self::REST_NS . '/google' ),
+				'redirectUrl'   => $redirect,
+				'buttonText'    => $settings['button_text'],
+				'buttonTheme'   => $settings['button_theme'],
+				'buttonSize'    => $settings['button_size'],
+				'oneTap'        => (bool) $one_tap,
+				'genericError'  => __( 'Google login could not be completed. Please try again.', 'techskype-social-login' ),
+				'networkError'  => __( 'The login service is temporarily unavailable.', 'techskype-social-login' ),
+			)
+		);
+	}
+
+	/**
+	 * Offer Google One Tap to logged-out visitors on public pages.
+	 */
+	public function enqueue_google_one_tap() {
+		if ( is_user_logged_in() || is_admin() || wp_doing_ajax() ) {
+			return;
+		}
+		$settings = $this->settings();
+		if ( empty( $settings['google_one_tap'] ) || empty( $settings['client_id'] ) ) {
+			return;
+		}
+
+		$redirect = $this->safe_redirect_url( $settings['redirect_url'] );
+		if ( empty( $redirect ) ) {
+			$request  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+			$redirect = $this->safe_redirect_url( home_url( $request ) );
+		}
+		$this->enqueue_google_script( $redirect ?: home_url( '/' ), true );
 	}
 
 	/**
@@ -228,22 +281,7 @@ final class TechSkype_Social_Login {
 		$google       = '';
 		$attribute    = '';
 		if ( ! empty( $settings['client_id'] ) ) {
-			wp_enqueue_script( 'techskype-social-login' );
-			wp_localize_script(
-				'techskype-social-login',
-				'techSkypeSocialLogin',
-				array(
-					'clientId'      => $settings['client_id'],
-					'nonceUrl'      => rest_url( self::REST_NS . '/nonce' ),
-					'loginUrl'      => rest_url( self::REST_NS . '/google' ),
-					'redirectUrl'   => $redirect,
-					'buttonText'    => $settings['button_text'],
-					'buttonTheme'   => $settings['button_theme'],
-					'buttonSize'    => $settings['button_size'],
-					'genericError'  => __( 'Google login could not be completed. Please try again.', 'techskype-social-login' ),
-					'networkError'  => __( 'The login service is temporarily unavailable.', 'techskype-social-login' ),
-				)
-			);
+			$this->enqueue_google_script( $redirect, ! empty( $settings['google_one_tap'] ) );
 			$google    = '<div class="techskype-google-button"></div>';
 			$attribute = ' data-techskype-google-login';
 		}
@@ -861,6 +899,7 @@ final class TechSkype_Social_Login {
 
 		$output = array(
 			'client_id'       => preg_match( '/^[0-9]+-[a-z0-9_-]+\.apps\.googleusercontent\.com$/i', $input['client_id'] ?? '' ) ? sanitize_text_field( $input['client_id'] ) : '',
+			'google_one_tap'  => empty( $input['google_one_tap'] ) ? 0 : 1,
 			'button_text'     => in_array( $input['button_text'] ?? '', $button_texts, true ) ? $input['button_text'] : $defaults['button_text'],
 			'button_theme'    => in_array( $input['button_theme'] ?? '', $button_themes, true ) ? $input['button_theme'] : $defaults['button_theme'],
 			'button_size'     => in_array( $input['button_size'] ?? '', $button_sizes, true ) ? $input['button_size'] : $defaults['button_size'],
@@ -951,6 +990,13 @@ final class TechSkype_Social_Login {
 					<tr>
 						<th scope="row"><label for="techskype-client-id"><?php esc_html_e( 'Google Client ID', 'techskype-social-login' ); ?></label></th>
 						<td><input class="regular-text code" id="techskype-client-id" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[client_id]" value="<?php echo esc_attr( $settings['client_id'] ); ?>"><p class="description"><?php esc_html_e( 'Use a Web application OAuth client. No Client Secret is required. Leave empty to disable Google.', 'techskype-social-login' ); ?></p></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Google One Tap', 'techskype-social-login' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[google_one_tap]" value="1" <?php checked( $settings['google_one_tap'] ); ?>> <?php esc_html_e( 'Ask logged-out visitors to sign in or register using the Google account already active in their browser', 'techskype-social-login' ); ?></label>
+							<p class="description"><?php esc_html_e( 'Google and the browser control when the privacy-preserving prompt appears. Closing it activates Google’s cooldown period.', 'techskype-social-login' ); ?></p>
+						</td>
 					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Button', 'techskype-social-login' ); ?></th>

@@ -4,7 +4,7 @@ Tags: social login, google login, facebook login, linkedin login, woocommerce lo
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,7 @@ Features:
 * Optionally creates new WordPress users.
 * Displays on WooCommerce login and registration forms.
 * Displays on standard WordPress login and registration forms.
+* Optionally offers Google One Tap to logged-out visitors using the Google account active in their browser.
 * Includes `[techskype_social_login]` for custom pages.
 * Supports local post-login redirects and optional email-domain restrictions.
 * Integrates with WordPress personal-data export and erasure tools.
@@ -34,7 +35,7 @@ No Google Client Secret is stored or required. Other providers require their sta
 
 == External services ==
 
-This plugin connects to external identity services only when the site owner enables them and a visitor chooses their login button.
+This plugin connects to external identity services only when the site owner enables them. When Google One Tap is enabled, Google Identity Services may be loaded for logged-out visitors before they choose to sign in.
 
 * The browser downloads the Google Identity Services library from `https://accounts.google.com/gsi/client` when a login button is displayed. The site's OAuth Client ID and standard browser request information are sent to Google.
 * After the visitor chooses a Google account, Google returns a signed identity token to the website. The token contains the account identifier and basic profile fields approved by the visitor.
@@ -85,6 +86,11 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.4.0 =
+
+* Added optional Google One Tap sign-in and registration prompts for logged-out visitors.
+* Preserved explicit Facebook, LinkedIn, Microsoft and Apple authorization buttons.
 
 = 1.3.0 =
 
