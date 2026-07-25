@@ -127,17 +127,19 @@ final class TechSkype_OAuth_Providers {
 				continue;
 			}
 
-			$url = add_query_arg(
-				array( 'redirect' => $redirect ),
-				rest_url( TechSkype_Social_Login::REST_NS . '/authorize/' . $provider )
-			);
-			$html .= sprintf(
-				'<a class="techskype-provider-button techskype-provider-%1$s" href="%2$s"><span aria-hidden="true">%3$s</span>%4$s</a>',
-				esc_attr( $provider ),
-				esc_url( $url ),
-				esc_html( strtoupper( substr( $definition['label'], 0, 1 ) ) ),
-				esc_html( sprintf( __( 'Continue with %s', 'techskype-social-login' ), $definition['label'] ) )
-			);
+				$url = add_query_arg(
+					array( 'redirect' => $redirect ),
+					rest_url( TechSkype_Social_Login::REST_NS . '/authorize/' . $provider )
+				);
+				/* translators: %s: social login provider name, such as Facebook or LinkedIn. */
+				$button_label = sprintf( __( 'Continue with %s', 'techskype-social-login' ), $definition['label'] );
+				$html .= sprintf(
+					'<a class="techskype-provider-button techskype-provider-%1$s" href="%2$s"><span aria-hidden="true">%3$s</span>%4$s</a>',
+					esc_attr( $provider ),
+					esc_url( $url ),
+					esc_html( strtoupper( substr( $definition['label'], 0, 1 ) ) ),
+					esc_html( $button_label )
+				);
 		}
 		return $html;
 	}

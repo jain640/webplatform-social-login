@@ -83,17 +83,12 @@ final class TechSkype_Social_Login {
 			return;
 		}
 
-		if ( function_exists( 'wp_set_option_autoload_values' ) ) {
-			wp_set_option_autoload_values( array( self::OPTION_KEY => false ) );
-		} else {
-			global $wpdb;
-			$wpdb->update(
-				$wpdb->options,
-				array( 'autoload' => 'no' ),
-				array( 'option_name' => self::OPTION_KEY ),
-				array( '%s' ),
-				array( '%s' )
-			);
+			if ( function_exists( 'wp_set_option_autoload_values' ) ) {
+				wp_set_option_autoload_values( array( self::OPTION_KEY => false ) );
+			} else {
+				$stored_settings = get_option( self::OPTION_KEY, array() );
+				delete_option( self::OPTION_KEY );
+				add_option( self::OPTION_KEY, $stored_settings, '', false );
 		}
 		update_option( 'techskype_social_login_storage_version', '1.1', false );
 	}
@@ -223,7 +218,7 @@ final class TechSkype_Social_Login {
 
 		$redirect = $this->safe_redirect_url( $settings['redirect_url'] );
 		if ( empty( $redirect ) ) {
-			$request  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+				$request  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
 			$redirect = $this->safe_redirect_url( home_url( $request ) );
 		}
 		$this->enqueue_google_script( $redirect ?: home_url( '/' ), true );
@@ -335,9 +330,10 @@ final class TechSkype_Social_Login {
 		?>
 		<div class="notice notice-warning">
 			<p>
-				<?php
-				printf(
-					wp_kses_post( __( 'TechSkype Social Login has replaced WordPress Social Login. Deactivate the old plugin to prevent unnecessary assets and maintenance conflicts. <a href="%s">Manage plugins</a>.', 'techskype-social-login' ) ),
+					<?php
+					printf(
+						/* translators: %s: URL of the WordPress Plugins administration screen. */
+						wp_kses_post( __( 'TechSkype Social Login has replaced WordPress Social Login. Deactivate the old plugin to prevent unnecessary assets and maintenance conflicts. <a href="%s">Manage plugins</a>.', 'techskype-social-login' ) ),
 					esc_url( admin_url( 'plugins.php' ) )
 				);
 				?>
@@ -446,7 +442,7 @@ final class TechSkype_Social_Login {
 
 		wp_set_current_user( $user->ID );
 		wp_set_auth_cookie( $user->ID, true, is_ssl() );
-		do_action( 'wp_login', $user->user_login, $user );
+			do_action( 'wp_login', $user->user_login, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core login lifecycle hook.
 		do_action( 'techskype_social_login_authenticated', $user->ID, $provider, $identity );
 
 		return $this->safe_redirect_url( $redirect ) ?: home_url( '/' );
@@ -522,7 +518,7 @@ final class TechSkype_Social_Login {
 
 		wp_set_current_user( $user->ID );
 		wp_set_auth_cookie( $user->ID, true, is_ssl() );
-		do_action( 'wp_login', $user->user_login, $user );
+			do_action( 'wp_login', $user->user_login, $user ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core login lifecycle hook.
 
 		$redirect = $this->safe_redirect_url( (string) $request->get_param( 'redirect' ) );
 		if ( empty( $redirect ) ) {
@@ -1101,10 +1097,16 @@ final class TechSkype_Social_Login {
 			<h2><?php esc_html_e( 'Provider configuration examples', 'techskype-social-login' ); ?></h2>
 			<p><?php esc_html_e( 'Use the exact URLs below. A different scheme, hostname, path, or trailing slash can cause a redirect mismatch.', 'techskype-social-login' ); ?></p>
 
-			<details open>
-				<summary><strong><?php esc_html_e( 'Google', 'techskype-social-login' ); ?></strong></summary>
-				<ol>
-					<li><?php printf( wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Google Auth Platform → Clients</a> and create a <strong>Web application</strong>.', 'techskype-social-login' ) ), esc_url( 'https://console.cloud.google.com/auth/clients' ) ); ?></li>
+				<details open>
+					<summary><strong><?php esc_html_e( 'Google', 'techskype-social-login' ); ?></strong></summary>
+					<ol>
+						<li><?php
+						printf(
+							/* translators: %s: URL of Google Auth Platform. */
+							wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Google Auth Platform → Clients</a> and create a <strong>Web application</strong>.', 'techskype-social-login' ) ),
+							esc_url( 'https://console.cloud.google.com/auth/clients' )
+						);
+						?></li>
 					<li><?php esc_html_e( 'Add this Authorized JavaScript origin:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $origin ); ?></code></li>
 					<li><?php esc_html_e( 'No redirect URI or Client Secret is required for the Google Identity Services button.', 'techskype-social-login' ); ?></li>
 					<li><?php esc_html_e( 'Example Client ID:', 'techskype-social-login' ); ?> <code>123456789012-example.apps.googleusercontent.com</code></li>
@@ -1114,7 +1116,13 @@ final class TechSkype_Social_Login {
 			<details>
 				<summary><strong><?php esc_html_e( 'Facebook', 'techskype-social-login' ); ?></strong></summary>
 				<ol>
-					<li><?php printf( wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Meta for Developers</a>, create a Consumer app, and add Facebook Login for Web.', 'techskype-social-login' ) ), esc_url( 'https://developers.facebook.com/apps/' ) ); ?></li>
+						<li><?php
+						printf(
+							/* translators: %s: URL of Meta for Developers. */
+							wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Meta for Developers</a>, create a Consumer app, and add Facebook Login for Web.', 'techskype-social-login' ) ),
+							esc_url( 'https://developers.facebook.com/apps/' )
+						);
+						?></li>
 					<li><?php esc_html_e( 'App domain:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $base_domain ); ?></code></li>
 					<li><?php esc_html_e( 'Website URL:', 'techskype-social-login' ); ?> <code><?php echo esc_html( trailingslashit( $origin ) ); ?></code></li>
 					<li><?php esc_html_e( 'Valid OAuth Redirect URI:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $this->oauth->callback_url( 'facebook' ) ); ?></code></li>
@@ -1126,7 +1134,13 @@ final class TechSkype_Social_Login {
 			<details>
 				<summary><strong><?php esc_html_e( 'LinkedIn OpenID Connect', 'techskype-social-login' ); ?></strong></summary>
 				<ol>
-					<li><?php printf( wp_kses_post( __( 'Create an app in the <a href="%s" target="_blank" rel="noopener noreferrer">LinkedIn Developer Portal</a> and associate it with a LinkedIn Page.', 'techskype-social-login' ) ), esc_url( 'https://www.linkedin.com/developers/apps' ) ); ?></li>
+						<li><?php
+						printf(
+							/* translators: %s: URL of the LinkedIn Developer Portal. */
+							wp_kses_post( __( 'Create an app in the <a href="%s" target="_blank" rel="noopener noreferrer">LinkedIn Developer Portal</a> and associate it with a LinkedIn Page.', 'techskype-social-login' ) ),
+							esc_url( 'https://www.linkedin.com/developers/apps' )
+						);
+						?></li>
 					<li><?php esc_html_e( 'Under Products, request “Sign In with LinkedIn using OpenID Connect”.', 'techskype-social-login' ); ?></li>
 					<li><?php esc_html_e( 'Authorized redirect URL:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $this->oauth->callback_url( 'linkedin' ) ); ?></code></li>
 					<li><?php esc_html_e( 'Scopes used:', 'techskype-social-login' ); ?> <code>openid profile email</code></li>
@@ -1137,7 +1151,13 @@ final class TechSkype_Social_Login {
 			<details>
 				<summary><strong><?php esc_html_e( 'Microsoft', 'techskype-social-login' ); ?></strong></summary>
 				<ol>
-					<li><?php printf( wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Microsoft Entra app registrations</a> and select New registration.', 'techskype-social-login' ) ), esc_url( 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade' ) ); ?></li>
+						<li><?php
+						printf(
+							/* translators: %s: URL of Microsoft Entra app registrations. */
+							wp_kses_post( __( 'Open <a href="%s" target="_blank" rel="noopener noreferrer">Microsoft Entra app registrations</a> and select New registration.', 'techskype-social-login' ) ),
+							esc_url( 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade' )
+						);
+						?></li>
 					<li><?php esc_html_e( 'For customer login, select accounts in any organizational directory and personal Microsoft accounts.', 'techskype-social-login' ); ?></li>
 					<li><?php esc_html_e( 'Add a Web platform redirect URI:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $this->oauth->callback_url( 'microsoft' ) ); ?></code></li>
 					<li><?php esc_html_e( 'Delegated permissions/scopes used:', 'techskype-social-login' ); ?> <code>openid profile email User.Read</code></li>
@@ -1148,7 +1168,13 @@ final class TechSkype_Social_Login {
 			<details>
 				<summary><strong><?php esc_html_e( 'Apple', 'techskype-social-login' ); ?></strong></summary>
 				<ol>
-					<li><?php printf( wp_kses_post( __( 'In the <a href="%s" target="_blank" rel="noopener noreferrer">Apple Developer portal</a>, enable Sign in with Apple for an App ID.', 'techskype-social-login' ) ), esc_url( 'https://developer.apple.com/account/resources/identifiers/list' ) ); ?></li>
+						<li><?php
+						printf(
+							/* translators: %s: URL of the Apple Developer portal. */
+							wp_kses_post( __( 'In the <a href="%s" target="_blank" rel="noopener noreferrer">Apple Developer portal</a>, enable Sign in with Apple for an App ID.', 'techskype-social-login' ) ),
+							esc_url( 'https://developer.apple.com/account/resources/identifiers/list' )
+						);
+						?></li>
 					<li><?php esc_html_e( 'Create and configure a Services ID; use it as the Client/Services ID.', 'techskype-social-login' ); ?></li>
 					<li><?php esc_html_e( 'Primary App ID domain:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $base_domain ); ?></code></li>
 					<li><?php esc_html_e( 'Return URL:', 'techskype-social-login' ); ?> <code><?php echo esc_html( $this->oauth->callback_url( 'apple' ) ); ?></code></li>
@@ -1184,13 +1210,15 @@ final class TechSkype_Social_Login {
 		$data = array();
 		if ( $user ) {
 			$provider_data = array();
-			foreach ( array( 'google_sub' => 'Google', 'facebook_id' => 'Facebook', 'linkedin_id' => 'LinkedIn', 'microsoft_id' => 'Microsoft', 'apple_id' => 'Apple' ) as $meta_suffix => $provider_label ) {
-				$value = get_user_meta( $user->ID, 'techskype_' . $meta_suffix, true );
-				if ( $value ) {
-					$provider_data[] = array(
-						'name'  => sprintf( __( '%s account identifier', 'techskype-social-login' ), $provider_label ),
-						'value' => $value,
-					);
+				foreach ( array( 'google_sub' => 'Google', 'facebook_id' => 'Facebook', 'linkedin_id' => 'LinkedIn', 'microsoft_id' => 'Microsoft', 'apple_id' => 'Apple' ) as $meta_suffix => $provider_label ) {
+					$value = get_user_meta( $user->ID, 'techskype_' . $meta_suffix, true );
+					if ( $value ) {
+						/* translators: %s: social login provider name. */
+						$identifier_name = sprintf( __( '%s account identifier', 'techskype-social-login' ), $provider_label );
+						$provider_data[] = array(
+							'name'  => $identifier_name,
+							'value' => $value,
+						);
 				}
 			}
 			$data[] = array(
