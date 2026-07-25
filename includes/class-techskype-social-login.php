@@ -46,13 +46,22 @@ final class TechSkype_Social_Login {
 	private function __construct() {
 		$this->oauth = new TechSkype_OAuth_Providers( $this );
 		add_action( 'init', array( $this, 'register_shortcode' ) );
+		add_action( 'init', array( $this, 'replace_legacy_login_output' ), 20 );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( 'admin_menu', array( $this, 'register_settings_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'maybe_secure_option_storage' ), 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ) );
+		add_action( 'login_enqueue_scripts', array( $this, 'prepare_login_assets' ) );
+		add_action( 'login_form', array( $this, 'render_wordpress_login' ) );
+		add_action( 'register_form', array( $this, 'render_wordpress_login' ) );
+		add_action( 'comment_form_must_log_in_after', array( $this, 'render_wordpress_login' ) );
+		add_action( 'bp_before_account_details_fields', array( $this, 'render_wordpress_login' ) );
+		add_action( 'bp_before_sidebar_login_form', array( $this, 'render_wordpress_login' ) );
+		add_action( 'after_signup_form', array( $this, 'render_wordpress_login' ) );
 		add_action( 'woocommerce_login_form_end', array( $this, 'render_woocommerce_login' ) );
 		add_action( 'woocommerce_register_form_end', array( $this, 'render_woocommerce_login' ) );
+		add_action( 'admin_notices', array( $this, 'legacy_plugin_notice' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( TECHSKYPE_SOCIAL_LOGIN_FILE ), array( $this, 'settings_link' ) );
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_privacy_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_privacy_eraser' ) );
@@ -93,6 +102,7 @@ final class TechSkype_Social_Login {
 			'button_text'      => 'continue_with',
 			'button_theme'     => 'outline',
 			'button_size'      => 'large',
+			'wordpress_login'  => 1,
 			'woocommerce'      => 1,
 			'create_users'     => 1,
 			'link_existing'    => 0,
@@ -160,6 +170,29 @@ final class TechSkype_Social_Login {
 	 */
 	public function register_shortcode() {
 		add_shortcode( 'techskype_social_login', array( $this, 'shortcode' ) );
+	}
+
+	/**
+	 * Remove the obsolete plugin's buttons when both plugins are active.
+	 */
+	public function replace_legacy_login_output() {
+		remove_action( 'login_form', 'wsl_render_auth_widget_in_wp_login_form' );
+		remove_action( 'register_form', 'wsl_render_auth_widget_in_wp_register_form' );
+		remove_action( 'comment_form_top', 'wsl_render_auth_widget_in_comment_form' );
+		remove_action( 'comment_form_must_log_in_after', 'wsl_render_auth_widget_in_comment_form' );
+		remove_action( 'bp_before_account_details_fields', 'wsl_render_auth_widget_in_wp_login_form' );
+		remove_action( 'bp_before_sidebar_login_form', 'wsl_render_auth_widget_in_wp_login_form' );
+		remove_action( 'after_signup_form', 'wsl_render_auth_widget_in_wp_register_form' );
+	}
+
+	/**
+	 * Register and preload styles needed by wp-login.php.
+	 */
+	public function prepare_login_assets() {
+		$this->register_assets();
+		if ( ! empty( $this->settings()['wordpress_login'] ) ) {
+			wp_enqueue_style( 'techskype-social-login' );
+		}
 	}
 
 	/**
@@ -232,6 +265,36 @@ final class TechSkype_Social_Login {
 		if ( ! empty( $settings['woocommerce'] ) ) {
 			echo wp_kses_post( do_shortcode( '[techskype_social_login]' ) );
 		}
+	}
+
+	/**
+	 * Add providers to the standard WordPress login and registration forms.
+	 */
+	public function render_wordpress_login() {
+		if ( ! empty( $this->settings()['wordpress_login'] ) ) {
+			echo wp_kses_post( do_shortcode( '[techskype_social_login]' ) );
+		}
+	}
+
+	/**
+	 * Prompt administrators to deactivate the replaced plugin.
+	 */
+	public function legacy_plugin_notice() {
+		if ( ! current_user_can( 'activate_plugins' ) || ! defined( 'WORDPRESS_SOCIAL_LOGIN_PLUGIN_URL' ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning">
+			<p>
+				<?php
+				printf(
+					wp_kses_post( __( 'TechSkype Social Login has replaced WordPress Social Login. Deactivate the old plugin to prevent unnecessary assets and maintenance conflicts. <a href="%s">Manage plugins</a>.', 'techskype-social-login' ) ),
+					esc_url( admin_url( 'plugins.php' ) )
+				);
+				?>
+			</p>
+		</div>
+		<?php
 	}
 
 	/**
@@ -801,6 +864,7 @@ final class TechSkype_Social_Login {
 			'button_text'     => in_array( $input['button_text'] ?? '', $button_texts, true ) ? $input['button_text'] : $defaults['button_text'],
 			'button_theme'    => in_array( $input['button_theme'] ?? '', $button_themes, true ) ? $input['button_theme'] : $defaults['button_theme'],
 			'button_size'     => in_array( $input['button_size'] ?? '', $button_sizes, true ) ? $input['button_size'] : $defaults['button_size'],
+			'wordpress_login' => empty( $input['wordpress_login'] ) ? 0 : 1,
 			'woocommerce'     => empty( $input['woocommerce'] ) ? 0 : 1,
 			'create_users'    => empty( $input['create_users'] ) ? 0 : 1,
 			'link_existing'   => empty( $input['link_existing'] ) ? 0 : 1,
@@ -914,6 +978,10 @@ final class TechSkype_Social_Login {
 					<tr>
 						<th scope="row"><label for="techskype-default-role"><?php esc_html_e( 'New user role', 'techskype-social-login' ); ?></label></th>
 						<td><select id="techskype-default-role" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[default_role]"><?php foreach ( $roles as $role_key => $role_name ) : ?><option value="<?php echo esc_attr( $role_key ); ?>" <?php selected( $settings['default_role'], $role_key ); ?>><?php echo esc_html( translate_user_role( $role_name ) ); ?></option><?php endforeach; ?></select></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'WordPress login', 'techskype-social-login' ); ?></th>
+						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[wordpress_login]" value="1" <?php checked( $settings['wordpress_login'] ); ?>> <?php esc_html_e( 'Show on the standard WordPress login and registration forms', 'techskype-social-login' ); ?></label></td>
 					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'WooCommerce', 'techskype-social-login' ); ?></th>

@@ -4,7 +4,7 @@ Tags: social login, google login, facebook login, linkedin login, woocommerce lo
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,7 @@ Features:
 * Connects existing users by verified email.
 * Optionally creates new WordPress users.
 * Displays on WooCommerce login and registration forms.
+* Displays on standard WordPress login and registration forms.
 * Includes `[techskype_social_login]` for custom pages.
 * Supports local post-login redirects and optional email-domain restrictions.
 * Integrates with WordPress personal-data export and erasure tools.
@@ -84,6 +85,12 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.3.0 =
+
+* Added standard WordPress login and registration placement.
+* Suppressed duplicate output from the obsolete WordPress Social Login plugin.
+* Added migration guidance when the replaced plugin remains active.
 
 = 1.2.0 =
 
