@@ -3,7 +3,7 @@
  * Plugin Name:       TechSkype Social Login
  * Plugin URI:        https://www.techskype.com/
  * Description:       Secure Google, Facebook, LinkedIn, Microsoft and Apple login for WordPress and WooCommerce.
- * Version:           1.4.0
+ * Version:           1.4.1
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            TechSkype
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TECHSKYPE_SOCIAL_LOGIN_VERSION', '1.4.0' );
+define( 'TECHSKYPE_SOCIAL_LOGIN_VERSION', '1.4.1' );
 define( 'TECHSKYPE_SOCIAL_LOGIN_FILE', __FILE__ );
 define( 'TECHSKYPE_SOCIAL_LOGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TECHSKYPE_SOCIAL_LOGIN_URL', plugin_dir_url( __FILE__ ) );

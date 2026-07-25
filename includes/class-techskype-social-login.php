@@ -28,6 +28,13 @@ final class TechSkype_Social_Login {
 	private $oauth;
 
 	/**
+	 * Whether Google front-end configuration has already been printed.
+	 *
+	 * @var bool
+	 */
+	private $google_script_configured = false;
+
+	/**
 	 * Get the singleton.
 	 *
 	 * @return self
@@ -180,6 +187,10 @@ final class TechSkype_Social_Login {
 		}
 
 		wp_enqueue_script( 'techskype-social-login' );
+		if ( $this->google_script_configured ) {
+			return;
+		}
+		$this->google_script_configured = true;
 		wp_localize_script(
 			'techskype-social-login',
 			'techSkypeSocialLogin',
