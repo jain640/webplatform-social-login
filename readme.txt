@@ -4,7 +4,7 @@ Tags: social login, google login, facebook login, linkedin login, woocommerce lo
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.2
+Stable tag: 1.4.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -86,6 +86,10 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.4.3 =
+
+* Added explicit external-script versioning and documented the required provider-identity lookup.
 
 = 1.4.2 =
 

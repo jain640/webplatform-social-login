@@ -145,10 +145,10 @@ final class TechSkype_Social_Login {
 	 */
 	public function register_assets() {
 		wp_register_script(
-			'google-identity-services',
-			'https://accounts.google.com/gsi/client',
-			array(),
-			null,
+				'google-identity-services',
+				'https://accounts.google.com/gsi/client',
+				array(),
+				TECHSKYPE_SOCIAL_LOGIN_VERSION,
 			true
 		);
 		wp_script_add_data( 'google-identity-services', 'async', true );
@@ -407,8 +407,8 @@ final class TechSkype_Social_Login {
 		$meta_key = 'techskype_' . $provider . '_id';
 		$user     = get_users(
 			array(
-				'meta_key'   => $meta_key,
-				'meta_value' => sanitize_text_field( $identity['id'] ),
+					'meta_key'   => $meta_key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Required exact lookup of a provider account identifier.
+					'meta_value' => sanitize_text_field( $identity['id'] ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Provider identifiers are unique and the query returns one user.
 				'number'     => 1,
 					'count_total' => false,
 				)
