@@ -21,6 +21,13 @@ final class TechSkype_Social_Login {
 	private static $instance = null;
 
 	/**
+	 * OAuth provider manager.
+	 *
+	 * @var TechSkype_OAuth_Providers
+	 */
+	private $oauth;
+
+	/**
 	 * Get the singleton.
 	 *
 	 * @return self
@@ -37,10 +44,12 @@ final class TechSkype_Social_Login {
 	 * Register hooks.
 	 */
 	private function __construct() {
+		$this->oauth = new TechSkype_OAuth_Providers( $this );
 		add_action( 'init', array( $this, 'register_shortcode' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_action( 'admin_menu', array( $this, 'register_settings_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_init', array( $this, 'maybe_secure_option_storage' ), 1 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ) );
 		add_action( 'woocommerce_login_form_end', array( $this, 'render_woocommerce_login' ) );
 		add_action( 'woocommerce_register_form_end', array( $this, 'render_woocommerce_login' ) );
@@ -50,21 +59,48 @@ final class TechSkype_Social_Login {
 	}
 
 	/**
+	 * Ensure credential-bearing settings are never autoloaded.
+	 */
+	public function maybe_secure_option_storage() {
+		if ( '1.1' === get_option( 'techskype_social_login_storage_version' ) ) {
+			return;
+		}
+
+		if ( function_exists( 'wp_set_option_autoload_values' ) ) {
+			wp_set_option_autoload_values( array( self::OPTION_KEY => false ) );
+		} else {
+			global $wpdb;
+			$wpdb->update(
+				$wpdb->options,
+				array( 'autoload' => 'no' ),
+				array( 'option_name' => self::OPTION_KEY ),
+				array( '%s' ),
+				array( '%s' )
+			);
+		}
+		update_option( 'techskype_social_login_storage_version', '1.1', false );
+	}
+
+	/**
 	 * Default settings.
 	 *
 	 * @return array<string, mixed>
 	 */
 	private function defaults() {
-		return array(
+		return array_merge(
+			array(
 			'client_id'        => '',
 			'button_text'      => 'continue_with',
 			'button_theme'     => 'outline',
 			'button_size'      => 'large',
 			'woocommerce'      => 1,
 			'create_users'     => 1,
+			'link_existing'    => 0,
 			'default_role'     => get_role( 'customer' ) ? 'customer' : 'subscriber',
 			'redirect_url'     => '',
 			'allowed_domains'  => '',
+			),
+			TechSkype_OAuth_Providers::defaults()
 		);
 	}
 
@@ -74,7 +110,20 @@ final class TechSkype_Social_Login {
 	 * @return array<string, mixed>
 	 */
 	private function settings() {
-		return wp_parse_args( get_option( self::OPTION_KEY, array() ), $this->defaults() );
+		$settings = wp_parse_args( get_option( self::OPTION_KEY, array() ), $this->defaults() );
+		foreach ( array( 'facebook_secret', 'linkedin_secret', 'microsoft_secret', 'apple_private_key' ) as $secret_key ) {
+			$settings[ $secret_key ] = $this->decrypt_secret( (string) $settings[ $secret_key ] );
+		}
+		return $settings;
+	}
+
+	/**
+	 * Read settings for provider integrations.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function get_settings() {
+		return $this->settings();
 	}
 
 	/**
@@ -125,12 +174,6 @@ final class TechSkype_Social_Login {
 		}
 
 		$settings = $this->settings();
-		if ( empty( $settings['client_id'] ) ) {
-			return current_user_can( 'manage_options' )
-				? '<p class="techskype-social-login-error">' . esc_html__( 'TechSkype Social Login requires a Google Client ID.', 'techskype-social-login' ) . '</p>'
-				: '';
-		}
-
 		$atts = shortcode_atts(
 			array(
 				'redirect' => '',
@@ -147,25 +190,38 @@ final class TechSkype_Social_Login {
 			$redirect = home_url( '/' );
 		}
 
-		wp_enqueue_script( 'techskype-social-login' );
 		wp_enqueue_style( 'techskype-social-login' );
-		wp_localize_script(
-			'techskype-social-login',
-			'techSkypeSocialLogin',
-			array(
-				'clientId'      => $settings['client_id'],
-				'nonceUrl'      => rest_url( self::REST_NS . '/nonce' ),
-				'loginUrl'      => rest_url( self::REST_NS . '/google' ),
-				'redirectUrl'   => $redirect,
-				'buttonText'    => $settings['button_text'],
-				'buttonTheme'   => $settings['button_theme'],
-				'buttonSize'    => $settings['button_size'],
-				'genericError'  => __( 'Google login could not be completed. Please try again.', 'techskype-social-login' ),
-				'networkError'  => __( 'The login service is temporarily unavailable.', 'techskype-social-login' ),
-			)
-		);
+		$oauth_buttons = $this->oauth->buttons_html( $redirect );
+		$google       = '';
+		$attribute    = '';
+		if ( ! empty( $settings['client_id'] ) ) {
+			wp_enqueue_script( 'techskype-social-login' );
+			wp_localize_script(
+				'techskype-social-login',
+				'techSkypeSocialLogin',
+				array(
+					'clientId'      => $settings['client_id'],
+					'nonceUrl'      => rest_url( self::REST_NS . '/nonce' ),
+					'loginUrl'      => rest_url( self::REST_NS . '/google' ),
+					'redirectUrl'   => $redirect,
+					'buttonText'    => $settings['button_text'],
+					'buttonTheme'   => $settings['button_theme'],
+					'buttonSize'    => $settings['button_size'],
+					'genericError'  => __( 'Google login could not be completed. Please try again.', 'techskype-social-login' ),
+					'networkError'  => __( 'The login service is temporarily unavailable.', 'techskype-social-login' ),
+				)
+			);
+			$google    = '<div class="techskype-google-button"></div>';
+			$attribute = ' data-techskype-google-login';
+		}
 
-		return '<div class="techskype-social-login" data-techskype-google-login><div class="techskype-google-button"></div><p class="techskype-social-login-status" role="alert" aria-live="polite"></p></div>';
+		if ( ! $google && ! $oauth_buttons ) {
+			return current_user_can( 'manage_options' )
+				? '<p class="techskype-social-login-error">' . esc_html__( 'Configure at least one provider in TechSkype Social Login settings.', 'techskype-social-login' ) . '</p>'
+				: '';
+		}
+
+		return '<div class="techskype-social-login"' . $attribute . '>' . $google . '<div class="techskype-provider-buttons">' . $oauth_buttons . '</div><p class="techskype-social-login-status" role="alert" aria-live="polite"></p></div>';
 	}
 
 	/**
@@ -182,6 +238,7 @@ final class TechSkype_Social_Login {
 	 * Register REST routes.
 	 */
 	public function register_rest_routes() {
+		$this->oauth->register_routes();
 		register_rest_route(
 			self::REST_NS,
 			'/nonce',
@@ -213,6 +270,74 @@ final class TechSkype_Social_Login {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Complete a verified non-Google provider login.
+	 *
+	 * @param string               $provider Provider slug.
+	 * @param array<string, mixed> $identity Verified provider identity.
+	 * @param string               $redirect Redirect.
+	 * @return string|WP_Error
+	 */
+	public function complete_social_login( $provider, $identity, $redirect ) {
+		$provider = sanitize_key( $provider );
+		$email    = sanitize_email( $identity['email'] ?? '' );
+		if ( ! $email || empty( $identity['id'] ) || empty( $identity['email_verified'] ) ) {
+			return new WP_Error( 'unverified_email', __( 'The provider did not return a verified email address.', 'techskype-social-login' ), array( 'status' => 403 ) );
+		}
+
+		$settings        = $this->settings();
+		$allowed_domains = array_filter( array_map( 'trim', explode( ',', strtolower( $settings['allowed_domains'] ) ) ) );
+		if ( $allowed_domains ) {
+			$email_domain = strtolower( substr( strrchr( $email, '@' ), 1 ) );
+			if ( ! in_array( $email_domain, $allowed_domains, true ) ) {
+				return new WP_Error( 'domain_not_allowed', __( 'This email domain is not permitted.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			}
+		}
+
+		$meta_key = 'techskype_' . $provider . '_id';
+		$user     = get_users(
+			array(
+				'meta_key'   => $meta_key,
+				'meta_value' => sanitize_text_field( $identity['id'] ),
+				'number'     => 1,
+					'count_total' => false,
+				)
+			);
+		$connected_user = ! empty( $user );
+		$user           = $connected_user ? $user[0] : get_user_by( 'email', $email );
+		if ( $user && ! $connected_user && empty( $settings['link_existing'] ) ) {
+			return new WP_Error(
+				'manual_link_required',
+				__( 'An account already uses this email. Sign in normally or ask an administrator to connect the social account.', 'techskype-social-login' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		if ( ! $user ) {
+			if ( empty( $settings['create_users'] ) ) {
+				return new WP_Error( 'registration_disabled', __( 'No account exists for this email address.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			}
+			$user = $this->create_user_from_identity( $identity );
+			if ( is_wp_error( $user ) ) {
+				return $user;
+			}
+		}
+
+		$connected_id = get_user_meta( $user->ID, $meta_key, true );
+		if ( $connected_id && ! hash_equals( (string) $connected_id, (string) $identity['id'] ) ) {
+			return new WP_Error( 'account_mismatch', __( 'This email is connected to another social account.', 'techskype-social-login' ), array( 'status' => 403 ) );
+		}
+		update_user_meta( $user->ID, $meta_key, sanitize_text_field( $identity['id'] ) );
+		update_user_meta( $user->ID, 'techskype_' . $provider . '_picture', esc_url_raw( $identity['picture'] ?? '' ) );
+
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true, is_ssl() );
+		do_action( 'wp_login', $user->user_login, $user );
+		do_action( 'techskype_social_login_authenticated', $user->ID, $provider, $identity );
+
+		return $this->safe_redirect_url( $redirect ) ?: home_url( '/' );
 	}
 
 	/**
@@ -253,6 +378,7 @@ final class TechSkype_Social_Login {
 
 		$email = sanitize_email( $claims['email'] );
 		$user  = get_user_by( 'email', $email );
+		$new_user = false;
 		if ( ! $user ) {
 			$settings = $this->settings();
 			if ( empty( $settings['create_users'] ) ) {
@@ -263,13 +389,14 @@ final class TechSkype_Social_Login {
 			if ( is_wp_error( $user ) ) {
 				return $user;
 			}
+			$new_user = true;
 		}
 
 		$existing_google_sub = get_user_meta( $user->ID, 'techskype_google_sub', true );
 		if ( $existing_google_sub && ! hash_equals( (string) $existing_google_sub, (string) $claims['sub'] ) ) {
 			return new WP_Error( 'account_mismatch', __( 'This email is connected to another Google account.', 'techskype-social-login' ), array( 'status' => 403 ) );
 		}
-		if ( ! $existing_google_sub && ! $this->google_is_authoritative_for_email( $claims ) ) {
+		if ( ! $new_user && ! $existing_google_sub && ! $this->google_is_authoritative_for_email( $claims ) ) {
 			return new WP_Error(
 				'manual_link_required',
 				__( 'For security, this existing account must be connected to Google by an administrator.', 'techskype-social-login' ),
@@ -515,7 +642,26 @@ final class TechSkype_Social_Login {
 	 * @return WP_User|WP_Error
 	 */
 	private function create_user_from_claims( $claims ) {
-		$email      = sanitize_email( $claims['email'] );
+		return $this->create_user_from_identity(
+			array(
+				'id'         => $claims['sub'],
+				'email'      => $claims['email'],
+				'name'       => $claims['name'] ?? '',
+				'first_name' => $claims['given_name'] ?? '',
+				'last_name'  => $claims['family_name'] ?? '',
+				'picture'    => $claims['picture'] ?? '',
+			)
+		);
+	}
+
+	/**
+	 * Create a user from normalized provider identity data.
+	 *
+	 * @param array<string, mixed> $identity Identity.
+	 * @return WP_User|WP_Error
+	 */
+	private function create_user_from_identity( $identity ) {
+		$email      = sanitize_email( $identity['email'] );
 		$base_login = sanitize_user( strstr( $email, '@', true ), true );
 		$base_login = $base_login ?: 'google-user';
 		$user_login = $base_login;
@@ -532,9 +678,9 @@ final class TechSkype_Social_Login {
 				'user_login'   => $user_login,
 				'user_email'   => $email,
 				'user_pass'    => wp_generate_password( 32, true, true ),
-				'display_name' => sanitize_text_field( $claims['name'] ?? $user_login ),
-				'first_name'   => sanitize_text_field( $claims['given_name'] ?? '' ),
-				'last_name'    => sanitize_text_field( $claims['family_name'] ?? '' ),
+				'display_name' => sanitize_text_field( $identity['name'] ?? $user_login ),
+				'first_name'   => sanitize_text_field( $identity['first_name'] ?? '' ),
+				'last_name'    => sanitize_text_field( $identity['last_name'] ?? '' ),
 				'role'         => $role,
 			)
 		);
@@ -542,9 +688,7 @@ final class TechSkype_Social_Login {
 			return $user_id;
 		}
 
-		update_user_meta( $user_id, 'techskype_google_sub', sanitize_text_field( $claims['sub'] ) );
-		update_user_meta( $user_id, 'techskype_google_picture', esc_url_raw( $claims['picture'] ?? '' ) );
-		do_action( 'techskype_social_login_user_created', $user_id, $claims );
+		do_action( 'techskype_social_login_user_created', $user_id, $identity );
 		return get_user_by( 'id', $user_id );
 	}
 
@@ -587,6 +731,16 @@ final class TechSkype_Social_Login {
 	private function safe_redirect_url( $url ) {
 		$url = esc_url_raw( $url );
 		return $url ? wp_validate_redirect( $url, '' ) : '';
+	}
+
+	/**
+	 * Validate a local redirect for provider manager.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	public function safe_local_redirect( $url ) {
+		return $this->safe_redirect_url( $url );
 	}
 
 	/**
@@ -636,22 +790,82 @@ final class TechSkype_Social_Login {
 	 */
 	public function sanitize_settings( $input ) {
 		$defaults      = $this->defaults();
+		$current       = $this->settings();
 		$button_texts  = array( 'signin_with', 'signup_with', 'continue_with', 'signin' );
 		$button_themes = array( 'outline', 'filled_blue', 'filled_black' );
 		$button_sizes  = array( 'large', 'medium', 'small' );
 		$roles         = wp_roles()->get_names();
 
-		return array(
+		$output = array(
 			'client_id'       => preg_match( '/^[0-9]+-[a-z0-9_-]+\.apps\.googleusercontent\.com$/i', $input['client_id'] ?? '' ) ? sanitize_text_field( $input['client_id'] ) : '',
 			'button_text'     => in_array( $input['button_text'] ?? '', $button_texts, true ) ? $input['button_text'] : $defaults['button_text'],
 			'button_theme'    => in_array( $input['button_theme'] ?? '', $button_themes, true ) ? $input['button_theme'] : $defaults['button_theme'],
 			'button_size'     => in_array( $input['button_size'] ?? '', $button_sizes, true ) ? $input['button_size'] : $defaults['button_size'],
 			'woocommerce'     => empty( $input['woocommerce'] ) ? 0 : 1,
 			'create_users'    => empty( $input['create_users'] ) ? 0 : 1,
+			'link_existing'   => empty( $input['link_existing'] ) ? 0 : 1,
 			'default_role'    => isset( $roles[ $input['default_role'] ?? '' ] ) ? sanitize_key( $input['default_role'] ) : $defaults['default_role'],
 			'redirect_url'    => $this->safe_redirect_url( $input['redirect_url'] ?? '' ),
 			'allowed_domains' => implode( ',', array_filter( array_map( 'sanitize_text_field', array_map( 'trim', explode( ',', strtolower( $input['allowed_domains'] ?? '' ) ) ) ) ) ),
 		);
+
+		foreach ( array( 'facebook', 'linkedin', 'microsoft' ) as $provider ) {
+			$output[ $provider . '_enabled' ] = empty( $input[ $provider . '_enabled' ] ) ? 0 : 1;
+			$output[ $provider . '_id' ]      = sanitize_text_field( $input[ $provider . '_id' ] ?? '' );
+			$new_secret = trim( (string) ( $input[ $provider . '_secret' ] ?? '' ) );
+			$secret = '' !== $new_secret ? sanitize_text_field( $new_secret ) : $current[ $provider . '_secret' ];
+			$output[ $provider . '_secret' ] = $this->encrypt_secret( $secret );
+		}
+		$output['apple_enabled'] = empty( $input['apple_enabled'] ) ? 0 : 1;
+		$output['apple_id']      = sanitize_text_field( $input['apple_id'] ?? '' );
+		$output['apple_team_id'] = sanitize_text_field( $input['apple_team_id'] ?? '' );
+		$output['apple_key_id']  = sanitize_text_field( $input['apple_key_id'] ?? '' );
+		$new_private_key         = trim( (string) ( $input['apple_private_key'] ?? '' ) );
+		$private_key = '' !== $new_private_key
+			? preg_replace( '/\r\n?/', "\n", $new_private_key )
+			: $current['apple_private_key'];
+		$output['apple_private_key'] = $this->encrypt_secret( $private_key );
+
+		return $output;
+	}
+
+	/**
+	 * Encrypt a provider secret at rest using WordPress authentication salts.
+	 *
+	 * @param string $value Plain value.
+	 * @return string
+	 */
+	private function encrypt_secret( $value ) {
+		if ( '' === $value || ! function_exists( 'openssl_encrypt' ) ) {
+			return $value;
+		}
+		$key        = hash( 'sha256', wp_salt( 'auth' ) . wp_salt( 'secure_auth' ), true );
+		$iv         = random_bytes( 12 );
+		$tag        = '';
+		$ciphertext = openssl_encrypt( $value, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+		return false === $ciphertext ? $value : 'enc:' . base64_encode( $iv . $tag . $ciphertext );
+	}
+
+	/**
+	 * Decrypt a stored provider secret.
+	 *
+	 * @param string $value Stored value.
+	 * @return string
+	 */
+	private function decrypt_secret( $value ) {
+		if ( ! str_starts_with( $value, 'enc:' ) || ! function_exists( 'openssl_decrypt' ) ) {
+			return $value;
+		}
+		$payload = base64_decode( substr( $value, 4 ), true );
+		if ( false === $payload || strlen( $payload ) < 29 ) {
+			return '';
+		}
+		$key        = hash( 'sha256', wp_salt( 'auth' ) . wp_salt( 'secure_auth' ), true );
+		$iv         = substr( $payload, 0, 12 );
+		$tag        = substr( $payload, 12, 16 );
+		$ciphertext = substr( $payload, 28 );
+		$plain      = openssl_decrypt( $ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+		return false === $plain ? '' : $plain;
 	}
 
 	/**
@@ -666,13 +880,13 @@ final class TechSkype_Social_Login {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'TechSkype Social Login', 'techskype-social-login' ); ?></h1>
-			<p><?php esc_html_e( 'Configure secure Sign in with Google for WordPress and WooCommerce.', 'techskype-social-login' ); ?></p>
+				<p><?php esc_html_e( 'Configure secure social login for WordPress and WooCommerce.', 'techskype-social-login' ); ?></p>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'techskype_social_login' ); ?>
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row"><label for="techskype-client-id"><?php esc_html_e( 'Google Client ID', 'techskype-social-login' ); ?></label></th>
-						<td><input class="regular-text code" id="techskype-client-id" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[client_id]" value="<?php echo esc_attr( $settings['client_id'] ); ?>" required><p class="description"><?php esc_html_e( 'Use a Web application OAuth client. No Client Secret is required.', 'techskype-social-login' ); ?></p></td>
+						<td><input class="regular-text code" id="techskype-client-id" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[client_id]" value="<?php echo esc_attr( $settings['client_id'] ); ?>"><p class="description"><?php esc_html_e( 'Use a Web application OAuth client. No Client Secret is required. Leave empty to disable Google.', 'techskype-social-login' ); ?></p></td>
 					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Button', 'techskype-social-login' ); ?></th>
@@ -694,6 +908,10 @@ final class TechSkype_Social_Login {
 						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[create_users]" value="1" <?php checked( $settings['create_users'] ); ?>> <?php esc_html_e( 'Create a WordPress account when the verified email is new', 'techskype-social-login' ); ?></label></td>
 					</tr>
 					<tr>
+						<th scope="row"><?php esc_html_e( 'Existing accounts', 'techskype-social-login' ); ?></th>
+						<td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[link_existing]" value="1" <?php checked( $settings['link_existing'] ); ?>> <?php esc_html_e( 'Connect a provider when its verified email matches an existing WordPress account', 'techskype-social-login' ); ?></label><p class="description"><?php esc_html_e( 'Leave disabled for the strictest account-linking policy.', 'techskype-social-login' ); ?></p></td>
+					</tr>
+					<tr>
 						<th scope="row"><label for="techskype-default-role"><?php esc_html_e( 'New user role', 'techskype-social-login' ); ?></label></th>
 						<td><select id="techskype-default-role" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[default_role]"><?php foreach ( $roles as $role_key => $role_name ) : ?><option value="<?php echo esc_attr( $role_key ); ?>" <?php selected( $settings['default_role'], $role_key ); ?>><?php echo esc_html( translate_user_role( $role_name ) ); ?></option><?php endforeach; ?></select></td>
 					</tr>
@@ -707,7 +925,33 @@ final class TechSkype_Social_Login {
 					</tr>
 					<tr>
 						<th scope="row"><label for="techskype-domains"><?php esc_html_e( 'Allowed email domains', 'techskype-social-login' ); ?></label></th>
-						<td><input class="regular-text" id="techskype-domains" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[allowed_domains]" value="<?php echo esc_attr( $settings['allowed_domains'] ); ?>"><p class="description"><?php esc_html_e( 'Optional comma-separated list. Leave empty to allow all verified Google accounts.', 'techskype-social-login' ); ?></p></td>
+						<td><input class="regular-text" id="techskype-domains" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[allowed_domains]" value="<?php echo esc_attr( $settings['allowed_domains'] ); ?>"><p class="description"><?php esc_html_e( 'Optional comma-separated list. Leave empty to allow all verified provider accounts.', 'techskype-social-login' ); ?></p></td>
+					</tr>
+				</table>
+				<h2><?php esc_html_e( 'Additional providers', 'techskype-social-login' ); ?></h2>
+				<p><?php esc_html_e( 'Create a web application with each provider and copy the exact callback URL shown below.', 'techskype-social-login' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php foreach ( array( 'facebook' => 'Facebook', 'linkedin' => 'LinkedIn (OpenID Connect)', 'microsoft' => 'Microsoft' ) as $provider => $label ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( $label ); ?></th>
+							<td>
+								<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY . '[' . $provider . '_enabled]' ); ?>" value="1" <?php checked( $settings[ $provider . '_enabled' ] ); ?>> <?php esc_html_e( 'Enable', 'techskype-social-login' ); ?></label>
+								<p><label><?php esc_html_e( 'Client ID', 'techskype-social-login' ); ?><br><input class="regular-text code" name="<?php echo esc_attr( self::OPTION_KEY . '[' . $provider . '_id]' ); ?>" value="<?php echo esc_attr( $settings[ $provider . '_id' ] ); ?>"></label></p>
+								<p><label><?php esc_html_e( 'Client Secret', 'techskype-social-login' ); ?><br><input class="regular-text code" type="password" autocomplete="new-password" name="<?php echo esc_attr( self::OPTION_KEY . '[' . $provider . '_secret]' ); ?>" placeholder="<?php echo $settings[ $provider . '_secret' ] ? esc_attr__( 'Saved — leave blank to keep', 'techskype-social-login' ) : ''; ?>"></label></p>
+								<p><strong><?php esc_html_e( 'Callback URL:', 'techskype-social-login' ); ?></strong> <code><?php echo esc_html( $this->oauth->callback_url( $provider ) ); ?></code></p>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Apple', 'techskype-social-login' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[apple_enabled]" value="1" <?php checked( $settings['apple_enabled'] ); ?>> <?php esc_html_e( 'Enable', 'techskype-social-login' ); ?></label>
+							<p><label><?php esc_html_e( 'Services ID', 'techskype-social-login' ); ?><br><input class="regular-text code" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[apple_id]" value="<?php echo esc_attr( $settings['apple_id'] ); ?>"></label></p>
+							<p><label><?php esc_html_e( 'Team ID', 'techskype-social-login' ); ?><br><input class="regular-text code" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[apple_team_id]" value="<?php echo esc_attr( $settings['apple_team_id'] ); ?>"></label></p>
+							<p><label><?php esc_html_e( 'Key ID', 'techskype-social-login' ); ?><br><input class="regular-text code" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[apple_key_id]" value="<?php echo esc_attr( $settings['apple_key_id'] ); ?>"></label></p>
+							<p><label><?php esc_html_e( 'Private key (.p8 contents)', 'techskype-social-login' ); ?><br><textarea class="large-text code" rows="5" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[apple_private_key]" placeholder="<?php echo $settings['apple_private_key'] ? esc_attr__( 'Saved — leave blank to keep', 'techskype-social-login' ) : ''; ?>"></textarea></label></p>
+							<p><strong><?php esc_html_e( 'Return URL:', 'techskype-social-login' ); ?></strong> <code><?php echo esc_html( $this->oauth->callback_url( 'apple' ) ); ?></code></p>
+						</td>
 					</tr>
 				</table>
 				<?php submit_button(); ?>
@@ -742,19 +986,28 @@ final class TechSkype_Social_Login {
 		$user = get_user_by( 'email', $email );
 		$data = array();
 		if ( $user ) {
+			$provider_data = array();
+			foreach ( array( 'google_sub' => 'Google', 'facebook_id' => 'Facebook', 'linkedin_id' => 'LinkedIn', 'microsoft_id' => 'Microsoft', 'apple_id' => 'Apple' ) as $meta_suffix => $provider_label ) {
+				$value = get_user_meta( $user->ID, 'techskype_' . $meta_suffix, true );
+				if ( $value ) {
+					$provider_data[] = array(
+						'name'  => sprintf( __( '%s account identifier', 'techskype-social-login' ), $provider_label ),
+						'value' => $value,
+					);
+				}
+			}
 			$data[] = array(
 				'group_id'    => 'techskype-social-login',
 				'group_label' => __( 'Social Login', 'techskype-social-login' ),
 				'item_id'     => 'techskype-social-login-' . $user->ID,
-				'data'        => array(
+				'data'        => array_merge(
+					$provider_data,
 					array(
-						'name'  => __( 'Google account identifier', 'techskype-social-login' ),
-						'value' => get_user_meta( $user->ID, 'techskype_google_sub', true ),
-					),
 					array(
 						'name'  => __( 'Google profile image', 'techskype-social-login' ),
 						'value' => get_user_meta( $user->ID, 'techskype_google_picture', true ),
 					),
+					)
 				),
 			);
 		}
@@ -785,8 +1038,9 @@ final class TechSkype_Social_Login {
 		$user    = get_user_by( 'email', $email );
 		$removed = false;
 		if ( $user ) {
-			$removed = delete_user_meta( $user->ID, 'techskype_google_sub' );
-			$removed = delete_user_meta( $user->ID, 'techskype_google_picture' ) || $removed;
+			foreach ( array( 'google_sub', 'google_picture', 'facebook_id', 'facebook_picture', 'linkedin_id', 'linkedin_picture', 'microsoft_id', 'microsoft_picture', 'apple_id', 'apple_picture' ) as $meta_suffix ) {
+				$removed = delete_user_meta( $user->ID, 'techskype_' . $meta_suffix ) || $removed;
+			}
 		}
 		return array(
 			'items_removed'  => $removed,

@@ -29,7 +29,61 @@
 	margin: 8px 0 0;
 }
 
+.techskype-provider-buttons {
+	display: grid;
+	gap: 9px;
+	margin-top: 10px;
+}
+
+.techskype-provider-button {
+	align-items: center;
+	border: 1px solid #c7cdd4;
+	border-radius: 4px;
+	box-sizing: border-box;
+	color: #202124;
+	display: flex;
+	font: 500 14px/40px Arial, sans-serif;
+	justify-content: center;
+	min-height: 40px;
+	padding: 0 14px;
+	position: relative;
+	text-decoration: none;
+	transition: box-shadow .15s ease, background-color .15s ease;
+}
+
+.techskype-provider-button span {
+	align-items: center;
+	background: #fff;
+	border-radius: 50%;
+	color: #1f2937;
+	display: flex;
+	font-weight: 700;
+	height: 24px;
+	justify-content: center;
+	left: 10px;
+	line-height: 1;
+	position: absolute;
+	width: 24px;
+}
+
+.techskype-provider-button:hover,
+.techskype-provider-button:focus {
+	box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
+	color: inherit;
+	text-decoration: none;
+}
+
+.techskype-provider-facebook { background: #1877f2; border-color: #1877f2; color: #fff; }
+.techskype-provider-linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
+.techskype-provider-microsoft { background: #fff; color: #2f2f2f; }
+.techskype-provider-apple { background: #000; border-color: #000; color: #fff; }
+.techskype-provider-facebook:hover,
+.techskype-provider-facebook:focus,
+.techskype-provider-linkedin:hover,
+.techskype-provider-linkedin:focus,
+.techskype-provider-apple:hover,
+.techskype-provider-apple:focus { color: #fff; filter: brightness(.94); }
+
 @keyframes techskype-login-spin {
 	to { transform: rotate(360deg); }
 }
-
