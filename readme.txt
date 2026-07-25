@@ -4,7 +4,7 @@ Tags: social login, google login, facebook login, linkedin login, woocommerce lo
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,8 @@ For enabled OAuth providers, the visitor is sent to the provider's authorization
 
 For another provider, create its web application, copy the exact callback URL displayed in the plugin settings, enter the credentials, and enable the provider.
 
+The settings screen includes step-by-step examples for every provider, including the current site's exact origin, domain, callback URLs, required products and requested scopes.
+
 == Frequently Asked Questions ==
 
 = Is a Google Client Secret required? =
@@ -82,6 +84,11 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.2.0 =
+
+* Added site-specific configuration examples for every provider.
+* Added provider console links, required products, scopes, domains and callback instructions.
 
 = 1.1.0 =
 
