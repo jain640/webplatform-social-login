@@ -2,18 +2,18 @@
 /**
  * OAuth and OpenID Connect provider integrations.
  *
- * @package TechSkypeSocialLogin
+ * @package WebPlatformSocialLogin
  */
 
 defined( 'ABSPATH' ) || exit;
 
-final class TechSkype_OAuth_Providers {
-	const STATE_COOKIE = 'techskype_social_oauth_state';
+final class WebPlatform_OAuth_Providers {
+	const STATE_COOKIE = 'webplatform_social_oauth_state';
 
 	/**
 	 * Main plugin.
 	 *
-	 * @var TechSkype_Social_Login
+	 * @var WebPlatform_Social_Login
 	 */
 	private $plugin;
 
@@ -27,7 +27,7 @@ final class TechSkype_OAuth_Providers {
 	/**
 	 * Constructor.
 	 *
-	 * @param TechSkype_Social_Login $plugin Main plugin.
+	 * @param WebPlatform_Social_Login $plugin Main plugin.
 	 */
 	public function __construct( $plugin ) {
 		$this->plugin    = $plugin;
@@ -88,7 +88,7 @@ final class TechSkype_OAuth_Providers {
 	 */
 	public function register_routes() {
 		register_rest_route(
-			TechSkype_Social_Login::REST_NS,
+			WebPlatform_Social_Login::REST_NS,
 			'/authorize/(?P<provider>facebook|linkedin|microsoft|apple)',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -97,7 +97,7 @@ final class TechSkype_OAuth_Providers {
 			)
 		);
 		register_rest_route(
-			TechSkype_Social_Login::REST_NS,
+			WebPlatform_Social_Login::REST_NS,
 			'/callback/(?P<provider>facebook|linkedin|microsoft|apple)',
 			array(
 				'methods'             => WP_REST_Server::ALLMETHODS,
@@ -129,12 +129,12 @@ final class TechSkype_OAuth_Providers {
 
 				$url = add_query_arg(
 					array( 'redirect' => $redirect ),
-					rest_url( TechSkype_Social_Login::REST_NS . '/authorize/' . $provider )
+					rest_url( WebPlatform_Social_Login::REST_NS . '/authorize/' . $provider )
 				);
 				/* translators: %s: social login provider name, such as Facebook or LinkedIn. */
-				$button_label = sprintf( __( 'Continue with %s', 'techskype-social-login' ), $definition['label'] );
+				$button_label = sprintf( __( 'Continue with %s', 'webplatform-social-login' ), $definition['label'] );
 				$html .= sprintf(
-					'<a class="techskype-provider-button techskype-provider-%1$s" href="%2$s"><span aria-hidden="true">%3$s</span>%4$s</a>',
+					'<a class="webplatform-provider-button webplatform-provider-%1$s" href="%2$s"><span aria-hidden="true">%3$s</span>%4$s</a>',
 					esc_attr( $provider ),
 					esc_url( $url ),
 					esc_html( strtoupper( substr( $definition['label'], 0, 1 ) ) ),
@@ -152,19 +152,19 @@ final class TechSkype_OAuth_Providers {
 	 */
 	public function authorize( WP_REST_Request $request ) {
 		if ( is_user_logged_in() ) {
-			return new WP_Error( 'already_logged_in', __( 'You are already signed in.', 'techskype-social-login' ), array( 'status' => 400 ) );
+			return new WP_Error( 'already_logged_in', __( 'You are already signed in.', 'webplatform-social-login' ), array( 'status' => 400 ) );
 		}
 
 		$provider = sanitize_key( $request['provider'] );
 		$settings = $this->plugin->get_settings();
 		if ( ! $this->provider_ready( $provider, $settings ) ) {
-			return new WP_Error( 'provider_unavailable', __( 'This login provider is not configured.', 'techskype-social-login' ), array( 'status' => 400 ) );
+			return new WP_Error( 'provider_unavailable', __( 'This login provider is not configured.', 'webplatform-social-login' ), array( 'status' => 400 ) );
 		}
 
 		$state    = wp_generate_password( 48, false, false );
 		$redirect = $this->plugin->safe_local_redirect( (string) $request->get_param( 'redirect' ) );
 		set_transient(
-			'techskype_oauth_' . hash( 'sha256', $state ),
+			'webplatform_oauth_' . hash( 'sha256', $state ),
 			array(
 				'provider' => $provider,
 				'redirect' => $redirect ?: home_url( '/' ),
@@ -197,20 +197,20 @@ final class TechSkype_OAuth_Providers {
 		$provider = sanitize_key( $request['provider'] );
 		$state    = sanitize_text_field( (string) $request->get_param( 'state' ) );
 		$cookie   = isset( $_COOKIE[ self::STATE_COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ self::STATE_COOKIE ] ) ) : '';
-		$stored   = $state ? get_transient( 'techskype_oauth_' . hash( 'sha256', $state ) ) : false;
+		$stored   = $state ? get_transient( 'webplatform_oauth_' . hash( 'sha256', $state ) ) : false;
 
 		if ( ! $state || ! $cookie || ! hash_equals( $cookie, $state ) || ! is_array( $stored ) || $provider !== ( $stored['provider'] ?? '' ) ) {
-			return new WP_Error( 'invalid_oauth_state', __( 'The social login request expired or was invalid.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			return new WP_Error( 'invalid_oauth_state', __( 'The social login request expired or was invalid.', 'webplatform-social-login' ), array( 'status' => 403 ) );
 		}
-		delete_transient( 'techskype_oauth_' . hash( 'sha256', $state ) );
+		delete_transient( 'webplatform_oauth_' . hash( 'sha256', $state ) );
 		$this->set_state_cookie( '', time() - HOUR_IN_SECONDS );
 
 		if ( $request->get_param( 'error' ) ) {
-			return new WP_Error( 'provider_denied', sanitize_text_field( (string) $request->get_param( 'error_description' ) ) ?: __( 'Login was cancelled.', 'techskype-social-login' ), array( 'status' => 400 ) );
+			return new WP_Error( 'provider_denied', sanitize_text_field( (string) $request->get_param( 'error_description' ) ) ?: __( 'Login was cancelled.', 'webplatform-social-login' ), array( 'status' => 400 ) );
 		}
 		$code = sanitize_text_field( (string) $request->get_param( 'code' ) );
 		if ( ! $code ) {
-			return new WP_Error( 'missing_code', __( 'The provider did not return an authorization code.', 'techskype-social-login' ), array( 'status' => 400 ) );
+			return new WP_Error( 'missing_code', __( 'The provider did not return an authorization code.', 'webplatform-social-login' ), array( 'status' => 400 ) );
 		}
 
 		$identity = $this->fetch_identity( $provider, $code, $request );
@@ -256,7 +256,7 @@ final class TechSkype_OAuth_Providers {
 		);
 		$tokens = $this->json_response( $token_response );
 		if ( is_wp_error( $tokens ) || empty( $tokens['access_token'] ) && empty( $tokens['id_token'] ) ) {
-			return new WP_Error( 'token_exchange_failed', __( 'The provider could not complete login.', 'techskype-social-login' ), array( 'status' => 502 ) );
+			return new WP_Error( 'token_exchange_failed', __( 'The provider could not complete login.', 'webplatform-social-login' ), array( 'status' => 502 ) );
 		}
 
 		if ( 'facebook' === $provider ) {
@@ -276,7 +276,7 @@ final class TechSkype_OAuth_Providers {
 		);
 		$profile = $this->json_response( $response );
 		if ( is_wp_error( $profile ) || empty( $profile['sub'] ) || empty( $profile['email'] ) ) {
-			return new WP_Error( 'profile_unavailable', __( 'The provider did not return a usable email address.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			return new WP_Error( 'profile_unavailable', __( 'The provider did not return a usable email address.', 'webplatform-social-login' ), array( 'status' => 403 ) );
 		}
 
 		return array(
@@ -306,7 +306,7 @@ final class TechSkype_OAuth_Providers {
 			)
 		);
 		if ( is_wp_error( $debug ) || empty( $debug['data']['is_valid'] ) || (string) $debug['data']['app_id'] !== (string) $settings['facebook_id'] ) {
-			return new WP_Error( 'invalid_facebook_token', __( 'Facebook could not verify this login.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			return new WP_Error( 'invalid_facebook_token', __( 'Facebook could not verify this login.', 'webplatform-social-login' ), array( 'status' => 403 ) );
 		}
 
 		$proof   = hash_hmac( 'sha256', $access_token, $settings['facebook_secret'] );
@@ -317,7 +317,7 @@ final class TechSkype_OAuth_Providers {
 			)
 		);
 		if ( is_wp_error( $profile ) || empty( $profile['id'] ) || empty( $profile['email'] ) ) {
-			return new WP_Error( 'facebook_email_missing', __( 'Facebook did not provide an email address.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			return new WP_Error( 'facebook_email_missing', __( 'Facebook did not provide an email address.', 'webplatform-social-login' ), array( 'status' => 403 ) );
 		}
 		return array(
 			'id'             => sanitize_text_field( $profile['id'] ),
@@ -341,7 +341,7 @@ final class TechSkype_OAuth_Providers {
 	private function apple_identity( $id_token, $settings, WP_REST_Request $request ) {
 		$claims = $this->verify_rs256_jwt( $id_token, 'https://appleid.apple.com/auth/keys', 'https://appleid.apple.com', $settings['apple_id'] );
 		if ( is_wp_error( $claims ) || empty( $claims['sub'] ) || empty( $claims['email'] ) ) {
-			return new WP_Error( 'invalid_apple_token', __( 'Apple could not verify this login.', 'techskype-social-login' ), array( 'status' => 403 ) );
+			return new WP_Error( 'invalid_apple_token', __( 'Apple could not verify this login.', 'webplatform-social-login' ), array( 'status' => 403 ) );
 		}
 
 		$user_data = json_decode( (string) $request->get_param( 'user' ), true );
@@ -377,11 +377,11 @@ final class TechSkype_OAuth_Providers {
 		$input = $this->base64url_encode( wp_json_encode( $header ) ) . '.' . $this->base64url_encode( wp_json_encode( $payload ) );
 		$key   = openssl_pkey_get_private( $settings['apple_private_key'] );
 		if ( ! $key || ! openssl_sign( $input, $der_signature, $key, OPENSSL_ALGO_SHA256 ) ) {
-			return new WP_Error( 'invalid_apple_key', __( 'The configured Apple private key is invalid.', 'techskype-social-login' ), array( 'status' => 500 ) );
+			return new WP_Error( 'invalid_apple_key', __( 'The configured Apple private key is invalid.', 'webplatform-social-login' ), array( 'status' => 500 ) );
 		}
 		$raw_signature = $this->ecdsa_der_to_raw( $der_signature, 32 );
 		if ( false === $raw_signature ) {
-			return new WP_Error( 'invalid_apple_signature', __( 'Apple client authentication could not be generated.', 'techskype-social-login' ), array( 'status' => 500 ) );
+			return new WP_Error( 'invalid_apple_signature', __( 'Apple client authentication could not be generated.', 'webplatform-social-login' ), array( 'status' => 500 ) );
 		}
 		return $input . '.' . $this->base64url_encode( $raw_signature );
 	}
@@ -431,7 +431,7 @@ final class TechSkype_OAuth_Providers {
 	 * @return array<string, string>|WP_Error
 	 */
 	private function remote_jwks( $url ) {
-		$cache_key = 'techskype_jwks_' . md5( $url );
+		$cache_key = 'webplatform_jwks_' . md5( $url );
 		$keys      = get_transient( $cache_key );
 		if ( is_array( $keys ) && $keys ) {
 			return $keys;
@@ -493,7 +493,7 @@ final class TechSkype_OAuth_Providers {
 	 * @return string
 	 */
 	public function callback_url( $provider ) {
-		return rest_url( TechSkype_Social_Login::REST_NS . '/callback/' . $provider );
+		return rest_url( WebPlatform_Social_Login::REST_NS . '/callback/' . $provider );
 	}
 
 	/**

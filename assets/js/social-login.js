@@ -10,7 +10,7 @@
 		} ).then( function ( response ) {
 			return response.json().then( function ( data ) {
 				if ( ! response.ok ) {
-					throw new Error( data.message || techSkypeSocialLogin.genericError );
+					throw new Error( data.message || webPlatformSocialLogin.genericError );
 				}
 				return data;
 			} );
@@ -20,56 +20,56 @@
 	function showError( containers, message ) {
 		containers.forEach( function ( container ) {
 			container.classList.remove( 'is-loading' );
-			container.querySelector( '.techskype-social-login-status' ).textContent = message;
+			container.querySelector( '.webplatform-social-login-status' ).textContent = message;
 		} );
 	}
 
 	function initialize() {
-		var containers = Array.from( document.querySelectorAll( '[data-techskype-google-login]' ) );
-		if ( ! containers.length && ! techSkypeSocialLogin.oneTap ) {
+		var containers = Array.from( document.querySelectorAll( '[data-webplatform-google-login]' ) );
+		if ( ! containers.length && ! webPlatformSocialLogin.oneTap ) {
 			return;
 		}
 
-		postJson( techSkypeSocialLogin.nonceUrl, {} ).then( function ( nonceResponse ) {
+		postJson( webPlatformSocialLogin.nonceUrl, {} ).then( function ( nonceResponse ) {
 			google.accounts.id.initialize( {
-				client_id: techSkypeSocialLogin.clientId,
+				client_id: webPlatformSocialLogin.clientId,
 				nonce: nonceResponse.nonce,
 				context: 'signin',
 				itp_support: true,
 				callback: function ( googleResponse ) {
 					containers.forEach( function ( container ) {
 						container.classList.add( 'is-loading' );
-						container.querySelector( '.techskype-social-login-status' ).textContent = '';
+						container.querySelector( '.webplatform-social-login-status' ).textContent = '';
 					} );
-					postJson( techSkypeSocialLogin.loginUrl, {
+					postJson( webPlatformSocialLogin.loginUrl, {
 						credential: googleResponse.credential,
 						nonce: nonceResponse.nonce,
-						redirect: techSkypeSocialLogin.redirectUrl
+						redirect: webPlatformSocialLogin.redirectUrl
 					} ).then( function ( loginResponse ) {
 						window.location.assign( loginResponse.redirect );
 					} ).catch( function ( error ) {
-						showError( containers, error.message || techSkypeSocialLogin.genericError );
+						showError( containers, error.message || webPlatformSocialLogin.genericError );
 					} );
 				}
 			} );
 
 			containers.forEach( function ( container ) {
-				google.accounts.id.renderButton( container.querySelector( '.techskype-google-button' ), {
+				google.accounts.id.renderButton( container.querySelector( '.webplatform-google-button' ), {
 				type: 'standard',
-				theme: techSkypeSocialLogin.buttonTheme,
-				size: techSkypeSocialLogin.buttonSize,
-				text: techSkypeSocialLogin.buttonText,
+				theme: webPlatformSocialLogin.buttonTheme,
+				size: webPlatformSocialLogin.buttonSize,
+				text: webPlatformSocialLogin.buttonText,
 				shape: 'rectangular',
 				logo_alignment: 'left',
 				width: Math.min( 360, Math.max( 240, container.clientWidth || 240 ) )
 				} );
 			} );
 
-			if ( techSkypeSocialLogin.oneTap ) {
+			if ( webPlatformSocialLogin.oneTap ) {
 				google.accounts.id.prompt();
 			}
 		} ).catch( function () {
-			showError( containers, techSkypeSocialLogin.networkError );
+			showError( containers, webPlatformSocialLogin.networkError );
 		} );
 	}
 

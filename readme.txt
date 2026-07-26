@@ -1,10 +1,10 @@
-=== TechSkype Social Login ===
-Contributors: techskype
+=== WebPlatform Social Login ===
+Contributors: jain640
 Tags: social login, google login, facebook login, linkedin login, woocommerce login
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.3
+Stable tag: 1.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Secure Google, Facebook, LinkedIn, Microsoft and Apple login for WordPress and W
 
 == Description ==
 
-TechSkype Social Login adds secure social sign-in buttons to WordPress.
+WebPlatform Social Login adds secure social sign-in buttons to WordPress.
 
 Features:
 
@@ -27,7 +27,7 @@ Features:
 * Displays on WooCommerce login and registration forms.
 * Displays on standard WordPress login and registration forms.
 * Optionally offers Google One Tap to logged-out visitors using the Google account active in their browser.
-* Includes `[techskype_social_login]` for custom pages.
+* Includes `[webplatform_social_login]` for custom pages.
 * Supports local post-login redirects and optional email-domain restrictions.
 * Integrates with WordPress personal-data export and erasure tools.
 
@@ -52,12 +52,12 @@ For enabled OAuth providers, the visitor is sent to the provider's authorization
 
 == Installation ==
 
-1. Upload the `techskype-social-login` folder to `/wp-content/plugins/`.
-2. Activate TechSkype Social Login.
+1. Upload the `webplatform-social-login` folder to `/wp-content/plugins/`.
+2. Activate WebPlatform Social Login.
 3. In Google Cloud, create an OAuth 2.0 Client ID of type Web application.
 4. Add your HTTPS website origin under Authorized JavaScript origins.
-5. Open Settings > TechSkype Social Login and enter the Client ID.
-6. Add `[techskype_social_login]` to any custom login page, or enable WooCommerce placement.
+5. Open Settings > WebPlatform Social Login and enter the Client ID.
+6. Add `[webplatform_social_login]` to any custom login page, or enable WooCommerce placement.
 
 For another provider, create its web application, copy the exact callback URL displayed in the plugin settings, enter the credentials, and enable the provider.
 
@@ -86,6 +86,11 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.4.4 =
+
+* Renamed the plugin to WebPlatform Social Login.
+* Restricted social-login account creation to the low-privilege Customer or Subscriber role.
 
 = 1.4.3 =
 

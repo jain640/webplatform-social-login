@@ -1,17 +1,17 @@
-.techskype-social-login {
+.webplatform-social-login {
 	clear: both;
 	margin: 18px 0;
 	max-width: 360px;
 	position: relative;
 }
 
-.techskype-social-login.is-loading {
+.webplatform-social-login.is-loading {
 	opacity: .65;
 	pointer-events: none;
 }
 
-.techskype-social-login.is-loading::after {
-	animation: techskype-login-spin .7s linear infinite;
+.webplatform-social-login.is-loading::after {
+	animation: webplatform-login-spin .7s linear infinite;
 	border: 2px solid #dbe3ea;
 	border-radius: 50%;
 	border-top-color: #147d7f;
@@ -23,19 +23,19 @@
 	width: 18px;
 }
 
-.techskype-social-login-status {
+.webplatform-social-login-status {
 	color: #b32d2e;
 	font-size: 13px;
 	margin: 8px 0 0;
 }
 
-.techskype-provider-buttons {
+.webplatform-provider-buttons {
 	display: grid;
 	gap: 9px;
 	margin-top: 10px;
 }
 
-.techskype-provider-button {
+.webplatform-provider-button {
 	align-items: center;
 	border: 1px solid #c7cdd4;
 	border-radius: 4px;
@@ -51,7 +51,7 @@
 	transition: box-shadow .15s ease, background-color .15s ease;
 }
 
-.techskype-provider-button span {
+.webplatform-provider-button span {
 	align-items: center;
 	background: #fff;
 	border-radius: 50%;
@@ -66,24 +66,24 @@
 	width: 24px;
 }
 
-.techskype-provider-button:hover,
-.techskype-provider-button:focus {
+.webplatform-provider-button:hover,
+.webplatform-provider-button:focus {
 	box-shadow: 0 1px 3px rgba(0, 0, 0, .22);
 	color: inherit;
 	text-decoration: none;
 }
 
-.techskype-provider-facebook { background: #1877f2; border-color: #1877f2; color: #fff; }
-.techskype-provider-linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
-.techskype-provider-microsoft { background: #fff; color: #2f2f2f; }
-.techskype-provider-apple { background: #000; border-color: #000; color: #fff; }
-.techskype-provider-facebook:hover,
-.techskype-provider-facebook:focus,
-.techskype-provider-linkedin:hover,
-.techskype-provider-linkedin:focus,
-.techskype-provider-apple:hover,
-.techskype-provider-apple:focus { color: #fff; filter: brightness(.94); }
+.webplatform-provider-facebook { background: #1877f2; border-color: #1877f2; color: #fff; }
+.webplatform-provider-linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
+.webplatform-provider-microsoft { background: #fff; color: #2f2f2f; }
+.webplatform-provider-apple { background: #000; border-color: #000; color: #fff; }
+.webplatform-provider-facebook:hover,
+.webplatform-provider-facebook:focus,
+.webplatform-provider-linkedin:hover,
+.webplatform-provider-linkedin:focus,
+.webplatform-provider-apple:hover,
+.webplatform-provider-apple:focus { color: #fff; filter: brightness(.94); }
 
-@keyframes techskype-login-spin {
+@keyframes webplatform-login-spin {
 	to { transform: rotate(360deg); }
 }
