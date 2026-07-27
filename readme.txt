@@ -14,6 +14,12 @@ Secure Google, Facebook, LinkedIn, Microsoft and Apple login for WordPress and W
 
 WebPlatform Social Login adds secure social sign-in buttons to WordPress.
 
+Learn more:
+
+* [Explore WebPlatform plugins](https://webplatform.co.in/plugins)
+* [Read the WebPlatform plugin setup guides](https://webplatform.co.in/help/plugins)
+* [Visit WebPlatform](https://webplatform.co.in/)
+
 Features:
 
 * Verifies Google ID token signatures using Google's published public keys.
