@@ -4,7 +4,7 @@ Tags: social login, google login, facebook login, linkedin login, woocommerce lo
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.4.4
+Stable tag: 1.4.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,7 @@ Features:
 * Includes `[webplatform_social_login]` for custom pages.
 * Supports local post-login redirects and optional email-domain restrictions.
 * Integrates with WordPress personal-data export and erasure tools.
+* Uses the current WebPlatform logo and icon on the plugin settings screen.
 
 No Google Client Secret is stored or required. Other providers require their standard application credentials.
 
@@ -52,7 +53,7 @@ This service is provided by Google under the [Google APIs Terms of Service](http
 For enabled OAuth providers, the visitor is sent to the provider's authorization page. The plugin sends the application Client ID, callback URL, requested basic-profile/email scopes, and a random state value. The provider sends an authorization code back to the website. The server exchanges that code and requests the visitor's identifier, name, verified email and optional profile image.
 
 * Facebook endpoints use `facebook.com` and `graph.facebook.com`. [Meta Platform Terms](https://developers.facebook.com/terms/) and [Meta Privacy Policy](https://www.facebook.com/privacy/policy/).
-* LinkedIn endpoints use `linkedin.com` and `api.linkedin.com`. [LinkedIn API Terms](https://www.linkedin.com/legal/l/api-terms-of-use) and [LinkedIn Privacy Policy](https://www.linkedin.com/legal/privacy-policy).
+* LinkedIn endpoints use `linkedin.com` and `api.linkedin.com`. [LinkedIn API Terms](https://www.linkedin.com/legal/l/api-terms-of-use) and [LinkedIn Privacy Policy](https://www.linkedin.com/legal/privacy-policy/).
 * Microsoft endpoints use `login.microsoftonline.com` and `graph.microsoft.com`. [Microsoft APIs Terms](https://learn.microsoft.com/legal/microsoft-apis/terms-of-use) and [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement).
 * Apple endpoints use `appleid.apple.com`. The plugin also downloads Apple's public signing keys to validate ID tokens. [Sign in with Apple terms](https://developer.apple.com/sign-in-with-apple/) and [Apple Privacy Policy](https://www.apple.com/legal/privacy/).
 
@@ -92,6 +93,12 @@ The browser loads Google's Identity Services JavaScript from `accounts.google.co
 Plugin metadata is available through WordPress personal-data export and erasure tools.
 
 == Changelog ==
+
+= 1.4.5 =
+
+* Updated plugin branding and author metadata to WebPlatform.
+* Added the current WebPlatform logo and icon to the plugin package and settings screen.
+* Added WordPress 7.1 compatibility validation and release documentation.
 
 = 1.4.4 =
 
